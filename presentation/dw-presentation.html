@@ -1,0 +1,590 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+	<title>Hadoop in Data Warehousing</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=792, user-scalable=no">
+	<meta http-equiv="x-ua-compatible" content="ie=edge">
+	<link rel="stylesheet" href="shower/themes/ribbon/styles/screen.css">
+
+	<script type="text/x-mathjax-config">
+  	MathJax.Hub.Config({
+    		tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+  	});
+	</script>
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+	<style type="text/css">
+		.floating-link {
+			font-size:75%;
+			display: block; 
+			-webkit-transform: rotate(90deg);
+			-moz-transform: rotate(90deg);
+			transform: rotate(90deg);
+			float:right;
+			width:600px;
+			height:100%;
+		}
+		.big {
+			height:100%; 
+			position: absolute; 
+			top:0;
+		}
+	</style>
+
+</head>
+<body class="list">
+	<header class="caption">
+		<h1>Hadoop in Data Warehousing</h1>
+		<p>by Alexey Grigorev</p>
+	</header>
+	<section class="slide"><div align="center">
+		<h3>INFO-H-419: Data Warehouses project</h3>
+		<h2>Hadoop in Data Warehousing</h2>
+		
+		<p align="right">by Alexey Grigorev</p>
+		<br><br>
+
+		<p>
+			<img src="images/ulb-logo.jpg" style="width: 20%; height: 20%" alt="">
+		</p>
+	</div></section>
+	
+	<section class="slide"><div>
+		<h2>Hadoop: In this Presentation</h2>
+		<ol>
+			<li>Introduction</li>
+			<li>MapReduce</li>
+			<li>Hadoop as MapReduce Implementation</li>
+			<li>Data Warehouse on Hadoop</li>
+			<li>Hadoop and Data Warehousing</li>
+			<li>Conclusions</li>
+		</ol>
+	</div></section>
+	
+	<section class="slide"><div>
+		<h2>Why?</h2>
+		<ol>
+			<li>Lot of Data</li>
+			<li>How to deal with it?</li>
+			<li>Hadoop to rescue!</li>
+			<li>When to use?</li>
+			<li>When not to use?</li>
+			<li>Curiosity</li>
+		</ol>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce: Origins</h2>
+		<ul>
+			<li>Functional Programming</li>
+			<li>High order functions to operate on lists</li>
+			<li><code>map</code>
+				<ul>
+					<li>apply to each element of the list</li>
+				</ul>
+			</li>
+			<li><code>reduce</code> = <code>fold</code> = <code>accumulate</code>
+				<ul>
+					<li>aggregate a list and produce one value of output</li>
+				</ul>
+			</li>
+			<li><i>No side effects</i></li>
+		</ul>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce: Origins</h2>
+		
+		<code>(define (+1 el) (+ el 1))</code>
+		<nobr>
+			<code>(map +1 (list 1 2 3))</code> $\Rightarrow$ 
+			<code>(list 2 3 4)</code>
+		</nobr>
+		<nobr>
+			<code>(reduce + 0 (list 2 3 4))</code> $\Rightarrow$ 
+			<code>9</code>
+		</nobr>
+		<nobr>
+			<code>(reduce + 0 <font color="blue">(map +1 (list 1 2 3)</font>))</code> $\Rightarrow$ 
+			<code>9</code>
+		</nobr>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce: Origins</h2>
+
+		<ul>
+			<li>These function do not have side effects</li>
+			<li>And can be parallelized easily</li>
+			<li>Can split the input data into chunks:</li>
+			<li><code>(list 1 2 3 4)</code> $\Rightarrow$ <code>(list 1 2)</code> and <code>(list 3 4)</code>	</li>
+			<li>Apply map to each chuck separately, and then combine (<code>reduce</code>) them together</li>
+		</ul>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce: Origins</h2>
+	
+		<ul>
+		 	<li>
+		 		Mapping separately:
+		 		<ul>
+				 	<li>
+				 		<code><font color="grey">(define</font> <font color="blue">res1</font> (reduce + 0 (map +1 (list 1 2))<font color="grey">)</font></code>
+				 	</li>
+					<li>
+						<code>(reduce + <font color="blue">res1</font> (map +1 (list 3 4)))</code>
+					</li>		
+		 		</ul>
+		 	</li>
+			
+			<li>This is the same as <code>(reduce + 0 (map +1 (list 1 2 3 4)))</code></li>
+			<li>Note that for <code>reduce</code> the function must be additive</li>
+
+		</ul>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce</h2>
+	
+		<ul>
+		 	<li>A <code>map</code> function 
+				<ul>
+				 	<li>takes a key-value pair <code>(in_key, in_val)</code></li>
+				 	<li>produces zero or more key-value pairs: <i>intermediate results</i></li>
+		 		</ul>
+		 	</li>
+		 	<li><i>intermediate results</i> are grouped by key</li>
+		 	<li>A <code>reduce</code> function 
+				<ul>
+				 	<li>for each group in the <i>intermediate results</i></li>
+				 	<li>aggregates and produces the final output</li>
+		 		</ul>
+		 	</li>
+		</ul>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce Stages</h2>
+
+	  <h3>each <i>MapReduce Job</i> is executed in 3 stages</h3>
+		<ul>
+		 	<li><b>map</b> stage: apply <code>map</code> to each key-value pair</li>
+		 	<li>group together the intermediate results by key</li>
+		 	<li><b>reduce</b> stage: apply <code>reduce</code> to each group</li>
+		</ul>
+	</div></section>
+	<section class="slide"><div>
+		<h2>MapReduce Stages</h2>		
+	  <p><img src="images/mr-stages.svg"></p>
+	</div></section>
+
+	<section class="slide"><div style="font-size:80%;">
+		<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean dictum justo est, quis sagittis leo tincidunt sit amet. Donec scelerisque rutrum quam non sagittis. Phasellus sem nisi, cursus eu lacinia eu, tempor ac eros. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. In mollis elit quis orci congue, quis aliquet mauris mollis. Interdum et malesuada fames ac ante ipsum primis in faucibus.</p>
+
+		<p>Proin euismod non quam vitae pretium. Quisque vel nisl et leo volutpat rhoncus quis ac eros. Sed lacus tellus, aliquam non ullamcorper in, dictum at magna. Vestibulum consequat egestas lacinia. Proin tempus rhoncus mi, et lacinia elit ornare auctor. Sed sagittis euismod massa ut posuere. Interdum et malesuada fames ac ante ipsum primis in faucibus. Duis fringilla dolor ornare mi dictum ornare.</p>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>MapReduce Example</h2>		
+		<pre>
+			<code>def map(String input_key, String doc):</code>
+			<code>  for each word w in doc:</code>
+			<code>    <mark>EmitIntermediate</mark>(w, 1)</code>
+			<code>def reduce(String output_key, Iterator output_vals):</code>
+			<code>  int res = 0</code>
+			<code>  for each v in output_vals:</code>
+			<code>    res += v</code>
+			<code>  <mark>Emit</mark>(res)</code>
+		</pre>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>MapReduce Example</h2>		
+	  <ul>
+		  <li><b>map</b> stage: output 1 for each word $w$</li>
+			<li>group a list of $(w, 1)$ pairs into $(w, [1, 1, ..., 1])$</li>
+			<li><b>reduce</b> stage: for each $w$ calculate how many ones there are</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>MapReduce Example: Result</h2>		
+	  <ul>
+		  <li>amet: 2</li>
+			<li>ante: 2</li>
+			<li>aptent: 1</li>
+			<li>consectetur: 1</li>
+			<li>dictum: 3</li>
+			<li>dolor: 2</li>
+			<li>elit: 3</li>
+			<li>...</li>
+		</ul>
+	</div></section>
+
+	<section class="slide cover"><div>
+		<h2 color="white">Hadoop</h2>
+		<img src="images/hadoop-cover.jpg" alt="">
+		<span class="floating-link"><a href="http://www.flickr.com/photos/erikeldridge/3614786392/">http://flickr.com/photos/erikeldridge/3614786392/</a></span>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Hadoop</h2>		
+	  <figure>
+			<blockquote>
+				<p>... is a framework that allows for the <mark>distributed processing</mark> of <mark>large data sets</mark> across clusters of computers using simple programming models. It is designed to <mark>scale up</mark> from single servers to thousands of machines, each offering local computation and storage. Rather than rely on hardware to deliver high-availability, the library itself is designed to <mark>detect and handle failures</mark> at the application layer, so delivering a highly-available service on top of a cluster of computers, each of which may be prone to failures.</p>
+			</blockquote>
+		</figure>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Hadoop</h2>		
+	  <ul>
+		  <li>Open Source implementation of MapReduce</li>
+			<li>"<i>Hadoop</i>":
+				<ul>
+					<li>HDFS</li>
+					<li>Hadoop MapReduce</li>
+					<li>HBase</li>
+					<li>Hive</li>
+					<li>... many others</li>
+				</ul>
+			</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Hadoop Cluster: Terminology</h2>		
+	  <ul>
+		  <li><b>Name Node</b>: orchestrates the process</li>
+			<li><b>Workers</b>: nodes that do the computation
+				<ul>
+					<li><b>Mappers</b> do the map phase</li>
+					<li><b>Reducers</b> do the reduce phase</li>
+				</ul>
+			</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Hadoop</h2>		
+	  <p><img src="images/hadoop.svg"></p>
+	</div></section>
+
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide.png" class="big"></p>
+	  <span class="floating-link"><a href="http://escience.washington.edu/get-help-now/what-hadoop">http://escience.washington.edu/get-help-now/what-hadoop</a></span>
+	</div></section>
+
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide-1.png" class="big"></p>
+	</div></section>
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide-2.png" class="big"></p>
+	</div></section>
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide-3.png" class="big"></p>
+	</div></section>
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide-4.png" class="big"></p>
+	</div></section>
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide-5.png" class="big"></p>
+	</div></section>
+	<section class="slide"><div>
+	  <p><img src="images/hadoop-one-slide-6.png" class="big"></p>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Fault-Tolerance $\approx$ Load-Balancing</h2>		
+	  <ul>
+		  <li>No execution plan</li>
+		  <li>Node failed $\Rightarrow$ Task reassigned</li>
+			<li>Node done $\Rightarrow$ Another task assigned</li>
+			<li>No communication costs</li>
+		</ul>
+	</div></section>
+
+
+	<section class="slide"><div>
+		<h2>Advantages</h2>		
+	  <ul>
+		  <li>Simple, especially for programmers who know FP</li>
+		  <li>Fault tolerant</li>
+			<li>No schema, can process any data</li>
+			<li>Flexible</li>
+			<li>Cheap and runs on commodity hardware</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Disadvantages</h2>		
+	  <ul>
+		  <li>No declarative high-level language like SQL</li>
+		  <li>Performance issues:
+		  	<ul><li>Map and Reduce are blocking</li></ul>
+		  </li>
+			<li>Name Node: single point of failure</li>
+			<li class="next">It's young</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2 color="white">Hadoop as a Data Warehouse</h2>
+		<ul>
+			<li>Cheetah</li>
+			<li>Hive</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Cheetah</h2>		
+	  <ul>
+		  <li>Typical DW relation-like schemas</li>
+		  <li>... But not exactly</li>
+			<li>They call it <i>virtual views</i></li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Cheetah</h2>		
+	  <img src="images/virt-views.png" style="height:75%">
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Cheetah</h2>		
+	  <ul>
+		  <li>Virtual views consist of columns that can be queried</li>
+		  <li>Everything inside is entirely denormalized</li>
+			<li>Append-only design and slowly changing dimensions</li>
+			<li class="next" color="red">Proprietary</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Hive</h2>		
+	  <ul>
+		  <li>A data warehousing solution built by Facebook</li>
+		  <li>For Big data analysis:
+		  	<ul><li color="grey">in 2010 (4 years ago!), 30+ PB</li></ul>
+		  </li>
+		  <li>Has its own data model</li>
+		  <li>HiveQL: a declarative SQL-like language for ad-hoc querying</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>HiveQL</h2>		
+		Tables
+	  <pre>
+	  	<code>STATUS UPDATE(user id int, status string, ds string)</code>
+			<code>PROFILES(userid int, school string, gender int)</code>
+	  </pre>
+
+	  <pre class="next">
+	  	<code>LOAD DATA LOCAL INPATH 'logs/status_updates'</code>
+			<code>INTO TABLE status_updates</code>
+			<code>PARTITION (ds='2009-03-20')</code>
+	  </pre>
+	</div></section>
+
+
+	<section class="slide"><div>
+		<h2>HiveQL</h2>		
+	  <pre style="font-size:75%;">
+			<code style="line-height:30px !important;">FROM</code>
+			<code style="line-height:30px !important;">(SELECT a.status, b.school, g.gender</code>
+			<code style="line-height:30px !important;"> FROM status_updates a JOIN profiles b</code>
+			<code style="line-height:30px !important;"> ON (a.userid = b.userid and a.ds = '2009-03-20') subq1</code>
+			<code style="line-height:30px !important;">INSERT OVERWRITE TABLE gender_summary</code>
+			<code style="line-height:30px !important;">PARTITION (ds='2009-03-20')</code>
+			<code style="line-height:30px !important;">SELECT subq1.gender, count(1)</code>
+			<code style="line-height:30px !important;">GROUP BY subq1.gender</code>
+			<code style="line-height:30px !important;">INSERT OVERWRITE TABLE school_summary</code>
+			<code style="line-height:30px !important;">PARTITION (ds='2009-03-20')</code>
+			<code style="line-height:30px !important;">SELECT subq.school, count(1)</code>
+			<code style="line-height:30px !important;">GROUP BY subq1.school</code>
+	  </pre>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>HiveQL</h2>		
+	  <pre style="font-size:75%;">
+			<code style="line-height:30px !important;">FROM</code>
+			<code style="line-height:30px !important;">(SELECT a.status, b.school, g.gender</code>
+			<code style="line-height:30px !important;"> FROM status_updates a JOIN profiles b</code>
+			<code style="line-height:30px !important;"> ON (a.userid = b.userid and a.ds = '2009-03-20') subq1</code>
+			<code style="line-height:30px !important;"><mark>INSERT OVERWRITE TABLE gender_summary</mark></code>
+			<code style="line-height:30px !important;"><mark>PARTITION (ds='2009-03-20')</mark></code>
+			<code style="line-height:30px !important;"><mark>SELECT subq1.gender, count(1)</mark></code>
+			<code style="line-height:30px !important;"><mark>GROUP BY subq1.gender</mark></code>
+			<code style="line-height:30px !important;">INSERT OVERWRITE TABLE school_summary</code>
+			<code style="line-height:30px !important;">PARTITION (ds='2009-03-20')</code>
+			<code style="line-height:30px !important;">SELECT subq.school, count(1)</code>
+			<code style="line-height:30px !important;">GROUP BY subq1.school</code>
+	  </pre>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>HiveQL</h2>		
+	  <pre style="font-size:75%;">
+			<code style="line-height:27px;">REDUCE subq2.school, subq2.meme, subq2.cnt</code>
+			<code style="line-height:27px;"><mark>USING 'top10.py'</mark> AS (school, meme, cnt)</code>
+			<code style="line-height:27px;">FROM (</code>
+			<code style="line-height:27px;">	SELECT subq1.school, subq1.meme, count(1) as cnt</code>
+			<code style="line-height:27px;">	FROM</code>
+			<code style="line-height:27px;">	(MAP b.school, a.status</code>
+			<code style="line-height:27px;">		<mark>USING 'meme_extractor.py'</mark></code>
+			<code style="line-height:27px;">		AS (school, meme)</code>
+			<code style="line-height:27px;">		FROM status_update a JOIN profiles b</code>
+			<code style="line-height:27px;">		ON (a.userid = b.userid)) subq1</code>
+			<code style="line-height:27px;">	GROUP BY subq1.school, subq1.meme</code>
+			<code style="line-height:27px;">	DISTRIBURE BY school, meme</code>
+			<code style="line-height:27px;">	SORT BY school, meme, cnt desc)</code>
+			<code style="line-height:27px;">) subq2</code>
+	  </pre>
+
+	</div></section>
+
+	<section class="slide cover"><div>
+		<h2 color="white">Hadoop + Data Warehouse</h2>
+		<img src="images/datacloud.png" class="big" alt="">
+		<span class="floating-link"><a href="http://www.flickr.com/photos/mrflip/5150336351/in/photostream/">http://www.flickr.com/photos/mrflip/5150336351/in/photostream/</a></span>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Hadoop + Data Warehouse</h2>
+		<ul>
+			<li>Hadoop and Data Warehouses can co-exist</li>
+			<li><b>DW</b>: OLAP, BI, transactional data</li>
+			<li><b>Hadoop</b>: Raw, unstructured data</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>ETL</h2>
+		<ul>
+			<li><b>E</b>xtract: load to HDFS, parse, prepare</li>
+			<li>Run some analysis</li>
+			<li><b>T</b>ransform: clean data and transform to some structured format
+				<ul>
+					<li>with MapReduce</li>
+				</ul>
+			</li>
+			<li><b>L</b>oad: extract from HDFS, load to DW</li>
+
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>ETL: examples</h2>
+		<ul>
+			<li>Text processing</li>
+			<li>Call center records analysis
+				<ul>
+					<li>extract sentiment</li>
+					<li>link to profile</li>
+					<li>which customers are more important to keep?</li>
+				</ul>
+			</li>
+			<li>Image processing</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Active Storage</h2>
+		<ul>
+			<li>Don't delete the data after processing</li>
+			<li>Hadoop storage is cheap: it can store anything</li>
+			<li>Run more analysis when needed</li>
+			<li class="next">Like: extract new keywords/features from the old dataset</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Active Storage - 2</h2>
+		<ul>
+			<li>Up to 80% of data is <i><font color="blue">dormant</font></i> (or <i><font color="blue">cold</font></i>)</li>
+			<li>Hadoop storage can be way cheaper than high-cost data management solutions</li>
+			<li>Move this data to Hadoop</li>
+			<li>When needed quickly analyze there or move back to DW</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Analytical Sandbox $\Rightarrow$</h2>
+	</div></section>
+
+	<section class="slide cover"><div>
+		<img src="images/mess.jpg" alt="">
+		<span class="floating-link"><a href="http://www.flickr.com/photos/pasukaru76/9824401426/">http://www.flickr.com/photos/pasukaru76/9824401426/</a></span>
+	</div></section>
+	<section class="slide cover"><div>
+		<img src="images/order.jpg" alt="">
+		<span class="floating-link"><a href="http://www.flickr.com/photos/pasukaru76/4977447932/">http://www.flickr.com/photos/pasukaru76/4977447932/</a></span>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Analytical Sandbox</h2>
+	</div></section>
+
+
+	<section class="slide"><div>
+		<h2>Even Tables</h2>
+		<table>
+		<tr>
+			<th scope="col">Locavore</th>
+			<th>Umami</th>
+			<th>Helvetica</th>
+			<th>Vegan</th>
+		</tr>
+		<tr>
+			<th scope="row">Fingerstache</th>
+			<td>Kale</td>
+			<td>Chips</td>
+			<td>Keytar</td>
+		</tr>
+		<tr>
+			<th scope="row">Sriracha</th>
+			<td>Gluten-free</td>
+			<td>Ennui</td>
+			<td>Keffiyeh</td>
+		</tr>
+		<tr>
+			<th scope="row">Thundercats</th>
+			<td>Jean</td>
+			<td>Shorts</td>
+			<td>Biodiesel</td>
+		</tr>
+		<tr>
+			<th scope="row">Terry</th>
+			<td>Richardson</td>
+			<td>Swag</td>
+			<td>Blog</td>
+		</tr>
+		</table>
+		<p>It’s good to have information organized.</p>
+	</div></section>
+
+
+	<section class="slide shout"><div>
+		<h2>Thank you</h2>
+	</div></section>
+
+	<section class="slide shout" id="Shower"><div>
+		<h2><img src="pictures/logo.svg" alt=""> <a href="https://github.com/shower/shower/">Prepared with Shower</a></h2>
+		<style>
+			#Picture h2 {
+				color:#FFF;
+				}
+			#Shower h2 {
+				font-size:100px
+				}
+			#Shower img {
+				width:0.72em;
+				height:0.72em;
+				}
+		</style>
+	</div></section>
+
+	<div class="progress"><div></div></div>
+	<script src="shower/shower.min.js"></script>
+	<!-- Copyright © 2013 Yours Truly, Famous Inc. -->
+	<!-- Photos by John Carey, fiftyfootshadows.net -->
+</body>
+</html>

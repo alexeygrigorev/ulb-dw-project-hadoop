@@ -1,0 +1,462 @@
+\documentclass[a4paper,12pt]{extarticle}
+
+\usepackage{amsmath}
+
+% for \Join
+\usepackage{newlfont}
+
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true}
+
+\usepackage{indentfirst}
+\frenchspacing
+
+
+% цветной текст
+\usepackage{color}
+\definecolor{lightgray}{gray}{0.95}
+
+% меняем поля страницы
+\usepackage{geometry}
+\geometry{left=3.5cm}   % левое поле
+\geometry{right=2.5cm}  % правое поле
+\geometry{top=2.5cm}      % верхнее поле
+\geometry{bottom=2.5cm}   % нижнее поле
+
+
+
+\usepackage{graphicx}
+\graphicspath{{images/}{}}
+
+\usepackage[svgnames]{xcolor}
+\usepackage{courier}
+\usepackage{listings}
+
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily, % Standardschrift
+  numberstyle=\tiny,          % Stil der Zeilennummern
+  numbersep=5pt,              % Abstand der Nummern zum Text
+  tabsize=2,                  % Groesse von Tabs
+  extendedchars=true,         %
+  breaklines=true,
+  keywordstyle=\color{RoyalBlue},
+  frame=lines,
+  stringstyle=\color{black}\ttfamily, % Farbe der String
+  showspaces=false,           % Leerzeichen anzeigen ?
+  showtabs=false,             % Tabs anzeigen ?
+  xleftmargin=17pt,
+  framexleftmargin=17pt,
+  framexrightmargin=5pt,
+  framexbottommargin=4pt,
+  aboveskip=16pt,
+  belowskip=12pt,
+  showstringspaces=false,
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-
+}
+\lstloadlanguages{Python, SQL}
+
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\begin{document}
+
+\input{./title.tex}
+
+\section*{Introduction}
+
+Today the amounts of data stored in Data Warehouses are becoming more and more enormous. While traditional ways of Data Warehousing design on top of Relational Databases are still popular, they fail to curb terabytes of data efficiently, which is mostly attributed to complexity of scaling relational databases. There are new emerging approaches that try to address this problem.
+
+One of such approaches is to use the MapReduce paradigm and Hadoop as the implementation for building large Data Warehouses over distributed network of servers that can handle huge volumes of data. Hadoop has already become a proven tool for BigData analytics and now there is a rising interest in this technology for Data Warehousing purposes.
+
+The goal of the work is to discuss in what ways Hadoop, as a MapReduce framework, can be used in Data Warehouses and then compare it with traditional approaches and see in which situations it should be beneficial to use Hadoop in a Data Warehousing project. Additionally we plan to see in what cases the traditional approaches should still be preferred over Hadoop.
+
+This work is organized in the following way: firstly we introduce the MapReduce paradigm and Hadoop as the implementation. In the second section we discuss how to build a data warehousing solution entirely on top of Hadoop. And in the third section we analyze in what ways Hadoop and Data Warehouses can co-exist and how Hadoop can be incorporated into a Data Warehouse.
+
+
+\newpage
+\section{Hadoop}
+
+\subsection{MapReduce}
+\emph{MapReduce} is a paradigm of parallel computation that initially comes from Functional Programming. It is mainly used as a framework for large scale parallel data processing and typically runs on a distributed file system \cite{ref:mr}. This framework is expressive enough to hide details of parallel execution and allow users to focus entirely on processing data.
+
+The main primitives of this framework are two functions: \textbf{map} and \textbf{reduce}, and both of them must be provided by a programmer. A map function takes a key-value pair (\texttt{in\_key}, \texttt{in\_value}) and produces multiple key-value pairs called ``intermediate result''. The output of the map function is then grouped by keys and fed to the reduce function, which typically aggregates its input and produces the final result \cite{source:mapreduce}.
+
+A \emph{MapReduce job} is an execution of these two function on some data set. A job consists of three stages:
+
+\begin{enumerate}
+%\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \textbf{the map stage}, where the map function is applied to each key-value pair of the input dataset
+
+\item
+  the grouping stages, at which the intermediate results are shuffled and combined, and
+
+\item
+  finally \textbf{the reduce stage}, where the reduce function is applied to each group of the intermediate result and produces the final result.
+
+\end{enumerate}
+
+A job is executed in parallel with many nodes reading from many input sources (see Figure \ref{figure:map-reduce}).
+
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[scale=0.6]{map-reduce.png}
+\caption{A MapReduce job: (1) map phase, (2) grouping, (3) reduce phase}
+\label{figure:map-reduce}
+\end{center}
+\end{figure}
+
+\ \\
+
+Let us consider a classical example: given some text, we need to calculate how many occurrences of each word are there.
+
+In a python-like pseudo-code the map and reduce functions are defined as follows
+
+\begin{lstlisting}[language=python]
+def map(String input_key, String doc):
+  for each word w in doc:
+    EmitIntermediate(w, 1)
+
+def reduce(String output_key, Iterator output_vals):
+  int res = 0
+  for each v in output_vals:
+    res += v
+  Emit(res)
+\end{lstlisting}
+
+At the map phase \texttt{EmitIntermediate($w$, 1)} outputs an intermediate result with word $w$ and a associates a counter 1 with each word. At the reduce phase we receive the intermediate results grouped by keys. In this case it has the form $(w, [1, 1, ..., 1])$: a word $w$ followed by a list of ones. We calculate how many ones there are in the result, this way obtaining the total count per word $w$ in the text.
+
+
+
+\subsection{Hadoop as MapReduce Implementation}
+\emph{Hadoop} is an open-source implementation of the MapReduce paradigm that is nowadays widely adopted . They position themselves as ``... a framework that allows for the distributed processing of large data sets across clusters of computers using simple programming models. It is designed to scale up from single servers to thousands of machines, each offering local computation and storage. Rather than rely on hardware to deliver high-availability, the library itself is designed to detect and handle failures at the application layer, so delivering a highly-available service on top of a cluster of computers, each of which may be prone to failures'' \cite{ref:hadoop}.
+
+However the term ``Hadoop'' usually refers to the entire family of products, and  the most important products are MapReduce and Hadoop Distributed File System (HDFS). Also the term sometimes may refer to other Hadoop-related products such as HBase \cite{ref:hbase-website}, Hive \cite{source:hive}, Mahout \cite{ref:mahout-website} and many others.
+
+
+\subsection{Hadoop MapReduce Component}
+Hadoop MapReduce Component is a data processing tool that works on top of HDFS and implements MapReduce. This essentially is the main component of Hadoop.
+
+A Hadoop cluster consists of the main node, called \emph{Name Node} that orchestrates the process of assigning jobs and monitoring the progress. A MapReduce job is done by data nodes, also called \emph{workers}. There are two kind of workers: \emph{mapper} workers and \emph{reduce} workers, they work at the map and reduce phases respectively. The number of reduce workers $R$ is usually know and specified beforehand.
+
+\ \\
+
+A MapReduce job in Hadoop is executed in the following way (see Figure \ref{figure:hadoop1}):
+
+\begin{figure}
+\begin{center}
+\includegraphics[scale=0.6]{hadoop.png}
+\caption{A MapReduce framework on Hadoop (figure source: \cite{ref:hadoop-uw})}
+\label{figure:hadoop1}
+\end{center}
+\end{figure}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  The Name Node chooses some idle workers and assigns them a map task
+\item
+  Before starting the map task, the workers need to do some preparation work:
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    The specified input file is loaded to the file system and partitioned into blocks (typically 64 kb)
+  \item
+    Then each block is replicated three times to guarantee fault-tolerance
+  \end{itemize}
+\item
+  The \textbf{map phase}
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    Each block of data is assigned to a map worker
+  \item
+    The worker applies the \textbf{map function} to it
+  \item
+    All intermediate results are sorted locally on the mapper
+  \item
+    Once the map function finishes its work, the intermediate results are sorted on local disk of mapper
+  \item
+    Also the intermediate results there are partitioned into $R$ groups (partitioning is typically done by hashing) - these groups will be used at the reduce phase
+  \end{itemize}
+\item
+  It needs to wait until \emph{all} map tasks are completed
+\item
+  Before the reduce phase starts
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    The Name Node assigns reduce task to idle workers (reducers)
+  \item
+    The intermediate results are shuffled and assigned to reducers
+  \item
+    Each reduces pulls its partition from mapper's disk (all map results are already partitioned by mappers)
+  \end{itemize}
+\item
+  The \textbf{reduce phase}
+
+  \begin{itemize}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item
+    Each reducer applies the \textbf{reduce function} to its own partition of data
+  \item
+    The produced result is stored and replicated three times to ensure fault-tolerance.
+  \end{itemize}
+\end{itemize}
+
+
+
+
+
+Fault-tolerance is naturally achieved in this execution scheme: if a node is failed, the name node just re-assigns a task to another node in the cluster. Also it does not prepare any execution plan beforehand: once a task is done, the node is assigned to another task. This way it also achieves load balancing. Additionally, there are no communication costs between the nodes.
+
+
+\subsection{Advantages and Disadvantages}
+
+As a platform for data processing, Hadoop has many advantages:
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  The MapReduce paradigm is quite simple, yet expressive; and it is especially suited for computing aggregated values.
+\item
+  It is fault-tolerant,
+\item
+  There is no dependency on data model or schema, which makes it especially attractive for handling unstructured data.
+\item
+  It is flexible: MapReduce programs can be written in nearly any programming language
+\item
+  It is cheap and runs on commodity hardware; plus it is open-source.
+\end{itemize}
+
+
+But also there are quite a few disadvantages of this model:  
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  There is no declarative high-level language such as SQL
+\item
+  There are some performance issues
+\item
+  The name node is a single point of failure
+\end{itemize}
+
+
+Let us discuss these disadvantages and how they are addressed. 
+
+
+There is no declarative high-level language such as SQL. MapReduce, although flexible, is quite a low-level approach and requires manual coding in some imperative programming language like Java or Python. This makes queries harder to write and maintain, while programmers that can do that are expensive. Especially this is bad for ad-hoc analytical querying. But there are possible solutions to this problem that introduce high-level SQL-like languages that compile into a series of MapReduce jobs. The most popular tools for this are Pig and Hive, and we discuss Hive in the section below.
+
+
+There are performance issues. The most prominent problem is that both Map and Reduce operations are blocking: the reduce phase cannot begin until the map phase finishes. This apparently causes performance degradation which is especially noticeable for OLAP querying. But there are solutions for this problem, and one of them is Incremental MapReduce. We refer to \cite{source:mapreduce} for further discussion on this problem.
+Additionally since there are no data model or schema, the input needs parsing, and therefore there are no indexes. The solution for this is to use HBase \cite{ref:hbase-website} or other database management system that works on top of HDFS.
+
+Also Hadoop is bad in High Availability: there is a single point of failure, namely, the name node. This problem is typically overcome by buying special fault-tolerant hardware for the name node and regularly doing back-ups.
+
+Finally, Hadoop is a very young technology, and it does not have decades of development behind and Relational Databases
+
+
+
+\section{Hadoop as a Data Warehouse}
+
+We see that Hadoop is proven useful with Big Data challenges and it is especially good for handling unstructured data such as free text, audio, video, or machine-generated data from sensors. What is mode, today the amounts of structured data grows rapidly and it becomes more and more expensive to keep all the data in one data warehouse.
+
+
+There are companies that build their Data Warehouses entirely on Hadoop. In this section we discuss how it is possible to accomplish that and what are the advantages and disadvantages of this approach.
+
+One of the successful examples is a system called ``Cheetah'' \cite{source:cheetah} used in a company Turn.inc. They provide special purpose marketing-oriented solutions and do that on top of Hadoop. 
+
+Inside they use typical data warehouse Show Flake and Star schemas with the central fact table. For being able to do that they introduce a concept of Virtual Views. A \emph{virtual view} consists of columns that are exposed to users for querying, and inside they denormalize everything so the records inside are fully self-contained and no joins are needed. The denormalization strategy works well since all used dimensions are either append-only or slowly changing dimensions. It is not possible to query anything other than the columns specified by the virtual views and this is done for performance reasons. 
+
+Unfortunately this system is proprietary and it is not possible to install and try it. What is more, their approach is too specific and targeted only to the domain of web marketing 
+
+
+But Hive is a general purpose Data Warehousing solution \cite{source:hive}. This system was initially developed internally by Facebook, but now this is a widely used open-source technology for querying data that works on top of Hadoop.
+
+Firstly, there is a Data Model in Hive that includes primitives, collections and user-defined types. The most basic structures are tables (like tables in Relational databases), each table corresponds to a directory in HDFS; partitions that divide tables; and buckets that divide partitions.
+
+Additionally, there is a System Catalog where it keeps statistics and there is a query optimizer. However, all results are still materialized because of the inherited limitation of MapReduce: each MapReduce job needs its input stored on HDFS - therefore pipelining techniques are not possible.
+
+Hive has a SQL-like declarative language for querying data that is called HiveQL. Consider the following example of a HiveQL query (taken from \cite{source:hive}). Suppose we have two tables: \texttt{STATUS\_UPDATE(user\_id int, status string, ds string)} and \texttt{PROFILES(userid int, school string, gender int)}. The column \texttt{ds} in this example is used to store date.
+
+To load data we use the following command:
+
+\begin{lstlisting}[language=SQL]
+LOAD DATA LOCAL INPATH 'logs/status_updates'
+INTO TABLE status_updates
+PARTITION (ds='2009-03-20')
+\end{lstlisting}
+
+Note that we partition data over the date field.
+
+Next, we want to compute daily statistics on how often a status is updated based on gender and school:
+
+\begin{lstlisting}[language=SQL]
+FROM
+(SELECT a.status, b.school, g.gender
+ FROM status_updates a JOIN profiles b
+ ON (a.userid = b.userid and a.ds = '2009-03-20') subq1
+
+-- groups by gender
+-- inserts the result into another table
+INSERT OVERWRITE TABLE gender_summary
+PARTITION (ds='2009-03-20')
+SELECT subq1.gender, count(1)
+GROUP BY subq1.gender
+
+-- groups by school
+INSERT OVERWRITE TABLE school_summary
+PARTITION (ds='2009-03-20')
+SELECT subq.school, count(1)
+GROUP BY subq1.school
+\end{lstlisting}
+
+Note that this is one query but with two subqueries: they are performed in a single scan.
+
+Consider another query: suppose we want to list top-10 memes per school. Even though some constructs are impossible or hard to express via HiveQL, it is allowed to attach a custom external script to do the processing.
+
+\begin{lstlisting}[language=SQL]
+REDUCE subq2.school, subq2.meme, subq2.cnt
+-- using custom python script
+USING 'top10.py' AS (school, meme, cnt)
+FROM (
+	SELECT subq1.school, subq1.meme, count(1) as cnt
+	FROM
+	(MAP b.school, a.status
+		USING 'meme_extractor.py'
+		AS (school, meme)
+		FROM status_update a JOIN profiles b
+		ON (a.userid = b.userid)) subq1
+	GROUP BY subq1.school, subq1.meme
+	DISTRIBURE BY school, meme
+	SORT BY school, meme, cnt desc)
+) subq2
+\end{lstlisting}
+
+
+This query language along with Hive itself becomes increasingly popular. 
+
+\ \\
+
+As we see these approaches are either too specific or designed to handle semi-structured or unstructured data. However the majority of  enterprizes deal with transactional data, for which there is no better solution than Relational Databases with almost half a century of development and research behind them. That is why usually Hadoop and Data Warehousing compliment each other, and not used alone. In the next section we discuss the interaction between them.
+
+
+\section{Hadoop and Data Warehousing}
+Hadoop plays a key role in capturing and aggregating raw data, it is cheap and scalable. But it cannot fully address the needs of Business Intelligence systems for building the reports based on traditional enterprize transactional data. Thus Hadoop and Data Warehouses should co-exist in one environment and used side-by-side, complimenting each other. 
+
+In this sections we see in what ways it is beneficial to use Hadoop and consider several use-cases.
+
+
+\subsection{ETL platform}
+The first and initial use-case of Hadoop in the Data Warehousing world is to use it as a transitory ETL platform. However Hadoop is not a replacement for any ETL tools, but rather just another component in them, and many vendors allow to plug in Hadoop with custom Hive and Pig queries.
+
+
+The typical usage of Hadoop in a Data Warehouse is:
+
+\begin{enumerate}
+
+\item
+  \textbf{E}xtract: load data into Hadoop's HDFS, parse data and prepare
+
+\item
+  Run some analysis on this data and try to find meaning and patterns
+
+\item
+  \textbf{T}ransform: clean the data and, with MapReduce, transform to some structured format
+
+\item
+  \textbf{L}oad: extract data from Hadoop and load into a Data Warehouse
+\end{enumerate}
+
+
+So input in this case is some non-structured, machine-generated or semi-structured data. This kind of data is usually analyzed in isolation and doesn't need integration, unlike transactional operational data that is typically stored in Data Warehouses.
+
+
+The most common usage of Hadoop as an ETL (according to \cite{source:h-report}) is Text-Processing (and Pre-processing). Relational Databases are not good for this: there are no SQL functions for text-processing. Input in this case is some text stream, typically from social networks such as Twitter and Facebook, but it can also be blogs and web pages. This textual data in then analyzed inside a Hadoop cluster with to extract keywords or for sentiment analysis. Finally the processed data and extracted meaning are put into a Data Warehouse for further analysis, for example, to match sentiment with customer profile.
+
+Another interesting use case is call-center monitoring. In a big company a typical call center receives too many phone calls with complaints. A solution to handle this data can be apply voice recognition algorithms, extract keywords and link them to the customers profile. In both cases the this information can later be used in many ways, one of which can be predicting customer churn.
+
+In another example let us suppose that we run an e-commerce web site such as EBay, where customers post their advertisements and other customers buy. A customer publishes an advertisement for selling a red dress, but she does not mention the color (because it is apparent from the picture). However we want to be able to answer queries like ``red dress''. This, this image is processed and important features are extracted. This is then put not only to the operational database, but also to the data warehouse to be able to answer BI questions like what type of dress is most popular. This can be used to discover behavioral patterns of the customers.
+
+
+\subsection{Active Storage}
+
+Hadoop with HDFS can store many gigabytes of data. And this storage is very cheap: it costs 20 times less compared to complex and very expensive data management solutions \cite{ref:hdfs-cost}. This makes it a perfect solution for long-term data storage. What is more, with Hadoop it is possible to retrieve data fast and do some data analysis there and not to move everything back to a Data Warehouse each time we want to analyze data. Which is why Hadoop is sometimes called an ``active storage''.
+
+For example, we keep all the call center recordings in Hadoop and do not put them into a Data Warehouse. But when needed, we may quickly run some queries over this set, for instance, to retrieve new keywords.
+
+Another use case is to archive traditional transactional enterprize data. The amount of data that is not used in a DW grows over time. This is called ``dormant'' or ``cold'' data and can make up to 80\% of all data \cite{ref:data-temperature}. We can move this data to a low-cost Hadoop storage which can results in extraordinary savings.
+
+
+\subsection{Analytical Sandboxes}
+
+Since the input data is not structured, it is often the case that analysts  do not know what exactly they want to derive from data. This is another common use-case of Hadoop: load data into hadoop and try to analyze it and see what is there. Tools such as Hive make Hadoop a perfect match for this task.
+
+
+
+\newpage
+\section*{Conclusions}
+
+The MapReduce computational paradigm has been becoming more and more popular in the today's world with petabytes of data around us. This paradigm, along with Hadoop as the most widespread implementation, have already proved useful in many areas, most prominently in social networks analysis as well as text processing and indexing. It has also been recognized as a convenient tool  for Data Warehouses as well. We saw that it is possible to build a large data warehouse only based on Hadoop and the technologies that surround it such as Hive.
+
+However, Hadoop is still quite far from reaching the maturity and performance of Data Warehousing solutions built on top of high-cost parallel relational database systems. But in spite of this fact these systems can effectively co-exist and compliment each other. The areas where Hadoop is the best include analysis of raw and semi-structured data, and this power is used during ETL stages, where Hadoop acts as a component in ETL flows. Once data is processed with MapReduce, it then can be utilized in a Data Warehouse by Business Intelligence tools.
+
+Additionally due to its low cost it is also used as an active storage for dormant enterprize data and enables to retrieve and analyze this data quickly and efficiently. 
+
+It is clear that in the future this paradigm will be continuing to grow in popularity and maturity, and there will be more and more use cases where it fits. What is more, according to surveys (such as \cite{source:h-report}) many companies that have not adopted Hadoop yet plan to do it within several years. That makes Hadoop a notable technology to become familiar with.
+
+
+
+
+\newpage
+\begin{thebibliography}{50}
+
+\bibitem{source:mapreduce} K.-H. Lee, Y.-J. Lee, H.Choi, Y.D. Chung, B. Moon. Parallel Data Processing with MapReduce: A Survey. 2011. \href{http://www.cs.arizona.edu/~bkmoon/papers/sigmodrec11.pdf}{[pdf]}
+
+\bibitem{source:mr-vs-dw} ``MapReduce vs Data Warehouse''. Webpage, \url{http://www.cbsolution.net/techniques/ontarget/mapreduce\_vs\_data\_warehouse}.
+    Accessed 15/12/2013.
+
+\bibitem{source:r-vs-nonrel-for-dw} C. Ordonez, I.-Y. Song, C. Garcia-Alvarado. Relational versus non-relational database systems for data warehousing. 2010 \href{http://www2.cs.uh.edu/~ordonez/co\_research\_proceedings.html}{[pdf]}
+
+\bibitem{source:h-and-dw} A. Awadallah, D. Graham, Hadoop and the Data Warehouse: When to Use Which. 2011. \href{http://www.teradata.com/white-papers/Hadoop-and-the-Data-Warehouse-When-to-Use-Which/}{[pdf]} (by Cloudera and Teradata)
+
+\bibitem{source:hive} A. Thusoo, J.S. Sarma, N. Jain, Z. Shao, P. Chakka, S. Anthony, H. Liu, P. Wyckoff, R. Murthy, Hive: A Warehousing Solution Over a Map-Reduce Framework. 2009. \href{http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.151.2637}{[pdf]} (by Facebook)
+
+\bibitem{source:cheetah} S. Chen. Cheetah: A High Performance, Custom Data Warehouse on Top of MapReduce. 2008. \href{http://www.vldb.org/pvldb/vldb2010/papers/I08.pdf}{[pdf]}
+
+\bibitem{source:h-changes} ``How (and Why) Hadoop is Changing the Data Warehousing Paradigm.'' Webpage \url{http://tdwi.org/articles/2013/08/13/hadoop-changing-dw-paradigm.aspx}.
+    Accessed 15/12/2013.
+
+\bibitem{source:h-report} P. Russom, Integrating Hadoop into Business Intelligence and Data Warehousing. 2013.  \href{http://www.slideshare.net/emcacademics/tdwi-best-practices-report-hadoop-foro-bi-and-dw-april-2013}{[pdf]}
+
+\bibitem{source:mapr} M. Ferguson, Offloading and Accelerating Data Warehouse ETL Processing Using Hadoop. \href{http://www.mapr.com/Download-document/40-Data-Warehouse-Offload}{[pdf]}
+
+\bibitem{ref:mr} J. Dean, S. Ghemawat. MapReduce: Simplified Data Processing on Large Clusters. 2004. \href{http://research.google.com/archive/mapreduce-osdi04.pdf}{[pdf]}
+
+\bibitem{ref:hadoop-uw} ``What is Hadoop?'' Webpage \url{http://escience.washington.edu/get-help-now/what-hadoop}.
+    Accessed 15/12/2013.
+
+\bibitem{ref:hadoop} Apache Hadoop project home page, url: \url{http://hadoop.apache.org/}.
+
+\bibitem{ref:hbase-website} Apache HBase home page, \url{http://hbase.apache.org/}.
+
+\bibitem{ref:mahout-website} Apache Mahout home page, \url{http://mahout.apache.org/}.
+
+\bibitem{ref:hdfs-cost} ``How Hadoop Cuts Big Data Costs'' \url{www.informationweek.com/software/a/d/d-id/1105546}.
+    Accessed 05/01/2014.
+
+\bibitem{ref:data-temperature} The Impact of Data Temperature on the Data Warehouse, whitepaper by Terradata, 2012.  \href{http://www.teradata.com/white-papers/The-Impact-of-Data-Temperature-on-the-Data-Warehouse-eb6690/?type=WP}{[pdf]}
+
+\end{thebibliography}
+
+
+
+\end{document}
