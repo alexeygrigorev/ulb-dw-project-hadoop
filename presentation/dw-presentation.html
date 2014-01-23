@@ -43,7 +43,7 @@
 		<h2>Hadoop in Data Warehousing</h2>
 		
 		<p align="right">by Alexey Grigorev</p>
-		<br><br>
+		<br><br><br><br>
 
 		<p>
 			<img src="images/ulb-logo.jpg" style="width: 20%; height: 20%" alt="">
@@ -54,6 +54,7 @@
 		<h2>Hadoop: In this Presentation</h2>
 		<ol>
 			<li>Introduction</li>
+			<li>Origins</li>
 			<li>MapReduce</li>
 			<li>Hadoop as MapReduce Implementation</li>
 			<li>Data Warehouse on Hadoop</li>
@@ -64,14 +65,14 @@
 	
 	<section class="slide"><div>
 		<h2>Why?</h2>
-		<ol>
+		<ul>
 			<li>Lot of Data</li>
 			<li>How to deal with it?</li>
 			<li>Hadoop to rescue!</li>
 			<li>When to use?</li>
 			<li>When not to use?</li>
 			<li>Curiosity</li>
-		</ol>
+		</ul>
 	</div></section>
 	<section class="slide"><div>
 		<h2>MapReduce: Origins</h2>
@@ -94,19 +95,21 @@
 	<section class="slide"><div>
 		<h2>MapReduce: Origins</h2>
 		
-		<code>(define (+1 el) (+ el 1))</code>
-		<nobr>
-			<code>(map +1 (list 1 2 3))</code> $\Rightarrow$ 
-			<code>(list 2 3 4)</code>
-		</nobr>
-		<nobr>
-			<code>(reduce + 0 (list 2 3 4))</code> $\Rightarrow$ 
-			<code>9</code>
-		</nobr>
-		<nobr>
-			<code>(reduce + 0 <font color="blue">(map +1 (list 1 2 3)</font>))</code> $\Rightarrow$ 
-			<code>9</code>
-		</nobr>
+		<ul>
+			<li><code>(define (+1 el) (+ el 1))</code></li>
+			<li>
+				<code>(map +1 (list 1 2 3))</code> $\Rightarrow$ 
+				<code>(list 2 3 4)</code>
+			</li>
+			<li>
+				<code>(reduce + 0 (list 2 3 4))</code> $\Rightarrow$ 
+				<code>9</code>
+			</li>
+			<li>
+				<code>(reduce + 0 <font color="blue">(map +1 (list 1 2 3)</font>))</code> $\Rightarrow$ 
+				<code>9</code>
+			</li>
+		</ul>
 	</div></section>
 	<section class="slide"><div>
 		<h2>MapReduce: Origins</h2>
@@ -325,6 +328,12 @@
 	</div></section>
 
 	<section class="slide"><div>
+		<h2>Disadvantages</h2>		
+	  <img src="images/hadoop-performance.png">
+	  <span style="font-size:50%;">[Abouzeid, Azza et al 2009]</span>
+	</div></section>
+
+	<section class="slide"><div>
 		<h2 color="white">Hadoop as a Data Warehouse</h2>
 		<ul>
 			<li>Cheetah</li>
@@ -521,44 +530,75 @@
 
 	<section class="slide"><div>
 		<h2>Analytical Sandbox</h2>
+		<ul>
+			<li>What are we looking in this data?</li>
+			<li>No structure - hard to know</li>
+			<li>Run ad-hoc Hive queries to see what's there</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div>
+		<h2>Conclusions</h2>
+		<ul>
+			<li>Hadoop is becoming more and more popular</li>
+			<li>Many companies plan to adopt</li>
+			<li>Best used with existent DW solutions
+				<ul>
+					<li>as an ETL</li>
+					<li>as Active Storage</li>
+					<li>as Analytical Sandbox</li>
+				</ul>
+			</li>
+		</ul>
 	</div></section>
 
 
 	<section class="slide"><div>
-		<h2>Even Tables</h2>
-		<table>
-		<tr>
-			<th scope="col">Locavore</th>
-			<th>Umami</th>
-			<th>Helvetica</th>
-			<th>Vegan</th>
-		</tr>
-		<tr>
-			<th scope="row">Fingerstache</th>
-			<td>Kale</td>
-			<td>Chips</td>
-			<td>Keytar</td>
-		</tr>
-		<tr>
-			<th scope="row">Sriracha</th>
-			<td>Gluten-free</td>
-			<td>Ennui</td>
-			<td>Keffiyeh</td>
-		</tr>
-		<tr>
-			<th scope="row">Thundercats</th>
-			<td>Jean</td>
-			<td>Shorts</td>
-			<td>Biodiesel</td>
-		</tr>
-		<tr>
-			<th scope="row">Terry</th>
-			<td>Richardson</td>
-			<td>Swag</td>
-			<td>Blog</td>
-		</tr>
-		</table>
-		<p>It’s good to have information organized.</p>
+		<h2>Conclusions</h2>
+		<ul>
+			<li>Hadoop is becoming more and more popular</li>
+			<li>Many companies plan to adopt</li>
+			<li>Best used with existent DW solutions</li>
+		</ul>
+	</div></section>
+
+	<section class="slide"><div style="font-size:65%;">
+		<h2>References</h2>
+			<ol>
+				<style scoped>
+				  li:before { 
+				  	content: '[' counter(list, decimal) ']  '; 
+				  }
+				</style>
+				<li>Lee, Kyong-Ha, et al. "Parallel data processing with MapReduce: a survey." <i>ACM SIGMOD Record</i> 40.4 (2012): 11-20. <a href="http://www.cs.arizona.edu/~bkmoon/papers/sigmodrec11.pdf">[pdf]</a></li>
+				<li>"MapReduce vs Data Warehouse". Webpage, <a href="http://www.cbsolution.net/techniques/ontarget/mapreduce_vs_data_warehouse">[link]</a>. Accessed 15/12/2013.</li>
+				<li>Ordonez, Carlos, Il-Yeol Song, and Carlos Garcia-Alvarado. "Relational versus non-relational database systems for data warehousing." <i>Proceedings of the ACM 13th international workshop on Data warehousing and OLAP</i>. ACM, 2010. <a href="http://www2.cs.uh.edu/~ordonez/co_research_proceedings.html">[pdf]</a></li>
+				<li>A. Awadallah, D. Graham. "Hadoop and the Data Warehouse: When to Use Which." (2011). <a href="http://www.teradata.com/white-papers/Hadoop-and-the-Data-Warehouse-When-to-Use-Which/">[pdf]</a> (by Cloudera and Teradata)</li>
+				<li>Thusoo, Ashish, et al. "Hive: a warehousing solution over a map-reduce framework." <i>Proceedings of the VLDB Endowment</i> 2.2 (2009): 1626-1629. <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.151.2637">[pdf]</a></li>
+				<li>Chen, Songting. "Cheetah: a high performance, custom data warehouse on top of MapReduce." <i>Proceedings of the VLDB Endowment</i> 3.1-2 (2010): 1459-1468. <a href="http://www.vldb.org/pvldb/vldb2010/papers/I08.pdf">[pdf]</a></li>				
+			</ol>
+	</div></section>
+
+	<section class="slide"><div style="font-size:65%;">
+		<h2>References</h2>
+			<ol>
+				<style scoped>
+				  li:before { 
+				  	content: '[' counter(list, decimal) ']  '; 
+				  }
+				</style>
+				<li style="counter-reset: list 6;">"How (and Why) Hadoop is Changing the Data Warehousing Paradigm." Webpage <a href="http://tdwi.org/articles/2013/08/13/hadoop-changing-dw-paradigm.aspx">[link]</a>.    Accessed 15/12/2013.</li>
+				<li>P. Russom. "Integrating Hadoop into Business Intelligence and Data Warehousing." (2013).  <a href="http://www.slideshare.net/emcacademics/tdwi-best-practices-report-hadoop-foro-bi-and-dw-april-2013">[pdf]</a></li>
+				<li>M. Ferguson. "Offloading and Accelerating Data Warehouse ETL Processing Using Hadoop." <a href="http://www.mapr.com/Download-document/40-Data-Warehouse-Offload">[pdf]</a></li>
+				<li>Dean, Jeffrey, and Sanjay Ghemawat. "MapReduce: simplified data processing on large clusters." Communications of the ACM 51.1 (2008): 107-113. <a href="http://research.google.com/archive/mapreduce-osdi04.pdf">[pdf]</a></li>
+				<li>"What is Hadoop?" Webpage <a href="http://escience.washington.edu/get-help-now/what-hadoop">[link]</a>. Accessed 15/12/2013.</li>
+				<li>Apache Hadoop project home page, url: <a href="http://hadoop.apache.org/">[link]</a>.</li>
+				<li>Apache HBase home page, <a href="http://hbase.apache.org/">[link]</a>.</li>
+				<li>Apache Mahout home page, <a href="http://mahout.apache.org/">[link]</a>.</li>
+				<li>"How Hadoop Cuts Big Data Costs" <a href="www.informationweek.com/software/a/d/d-id/1105546">[link]</a>. Accessed 05/01/2014.</li>
+				<li>"The Impact of Data Temperature on the Data Warehouse." whitepaper by Terradata (2012).  <a href="http://www.teradata.com/white-papers/The-Impact-of-Data-Temperature-on-the-Data-Warehouse-eb6690/?type=WP">[pdf]</a></li>
+				<li>Abouzeid, Azza, et al. "HadoopDB: an architectural hybrid of MapReduce and DBMS technologies for analytical workloads." <i>Proceedings of the VLDB</i> Endowment 2.1 (2009): 922-933. <a href="http://www-master.ufr-info-p6.jussieu.fr/2009/Ext/naacke/grbd2010/extra/exposes2010/C3_VLDB09_HadoopDB.pdf">[pdf]</a></li>
+			</ol>
 	</div></section>
 
 
@@ -584,7 +624,5 @@
 
 	<div class="progress"><div></div></div>
 	<script src="shower/shower.min.js"></script>
-	<!-- Copyright © 2013 Yours Truly, Famous Inc. -->
-	<!-- Photos by John Carey, fiftyfootshadows.net -->
 </body>
 </html>
